@@ -1,173 +1,248 @@
 import speech_recognition as sr
 import webbrowser
 import pyttsx3
-from forex_python.converter import CurrencyRates
 import pyautogui
 import wikipedia
-
-import importlib
-import musicLibrary
-importlib.reload(musicLibrary)
 import requests
+import json
+import config  # For API key
 
+# --- INITIALIZATION ---
 recognizer = sr.Recognizer()
 engine = pyttsx3.init()
-newsapi = "1744842a4c0f4eb69e078c97f97c86ff"
+music_library = {}
+
+
+# --- HELPER FUNCTIONS ---
 def set_voice_to_female():
+    """Sets the text-to-speech voice to a female voice if available."""
     voices = engine.getProperty('voices')
     if len(voices) > 1:
         engine.setProperty('voice', voices[1].id)
     else:
-        print("female voice not found")
+        print("Female voice not found, using default.")
         engine.setProperty('voice', voices[0].id)
-def processcommand(c):
-    if "open google" in c.lower():
-        webbrowser.open("https://www.google.com")
-    elif "open linkedin" in c.lower():
-        webbrowser.open("https://www.linkedin.com")
-    elif "open youtube" in c.lower():
-        webbrowser.open("https://www.youtube.com")
-    elif c.lower().startswith("play"):
-        song = c.lower().split(" ")[1]
-        link=musicLibrary.music[song]
-        webbrowser.open(link)
-    elif "news" in c.lower():
-        r=requests.get("https://newsapi.org/v2/top-headlines?country=us&apiKey=1744842a4c0f4eb69e078c97f97c86ff")
-        if r.status_code == 200:
-            data = r.json()
-            articles = data.get('articles',[])
-            for article in articles:
-                speak(article['title'])
-    elif "tell me a joke" in c.lower():
-        tell_joke()
-    elif "search" in c.lower():
-        search_query = c.lower().replace("search", "").strip()
-        if search_query:
-            web_search(search_query)
-    elif "open youtube" in c.lower():
-        speak("What would you like to search for on YouTube?")
-        with sr.Microphone() as source:
-            audio = recognizer.listen(source)
-        query = recognizer.recognize_google(audio)
-        open_youtube(query)
-    elif "pause" in c.lower():
-        control_youtube('pause')
-    elif "play" in c.lower():
-        control_youtube('play')
-    elif "mute" in c.lower():
-        control_youtube('mute')
-    elif "unmute" in c.lower():
-        control_youtube('unmute')
-    elif "wikipedia" in c.lower():
-        speak("What topic would you like to search for on Wikipedia?")
-        with sr.Microphone() as source:
-            audio = recognizer.listen(source)
-        topic = recognizer.recognize_google(audio)
-        speak(f"Searching for {topic} on Wikipedia.")
-        summary = summarize_wikipedia(topic)
-        if summary:
-            speak(f"Here's the summary: {summary}")
-            print(summary)
-        
-def web_search(query):
-    search_query = '+'.join(query.split())  # Convert spaces to '+' for the URL
-    url = f"https://www.google.com/search?q={search_query}"
-    webbrowser.open(url)
-    speak(f"Searching for {query} on the web.")
-    print(f"Web search: {query}")
-def open_youtube(query):
-    search_query = '+'.join(query.split())  # Convert spaces to '+' for URL
-    url = f"https://www.youtube.com/results?search_query={search_query}"
-    webbrowser.open(url)
-    speak(f"Searching for {query} on YouTube.")
-    print(f"Searching for {query} on YouTube.")
 
-# Control YouTube (Play/Pause)
-def control_youtube(action):
-    if action == 'pause':
-        pyautogui.press('k')  # YouTube shortcut for pause/play
-        speak("Video paused.")
-    elif action == 'play':
-        pyautogui.press('k')  # YouTube shortcut for pause/play
-        speak("Video playing.")
-    elif action == 'mute':
-        pyautogui.press('m')  # YouTube shortcut for mute/unmute
-        speak("Video muted.")
-    elif action == 'unmute':
-        pyautogui.press('m')  # YouTube shortcut for mute/unmute
-        speak("Video unmuted.")
-    
-def summarize_wikipedia(query):
+
+def speak(text):
+    """Converts text to speech."""
+    engine.say(text)
+    engine.runAndWait()
+
+
+def listen_for_command(prompt="Listening..."):
+    """Listens for a voice command and returns it as text."""
+    with sr.Microphone() as source:
+        print(prompt)
+        try:
+            audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
+            command = recognizer.recognize_google(audio, language='en-in')
+            print(f"You said: {command}")
+            return command.lower()
+        except sr.UnknownValueError:
+            speak("Sorry, I did not understand that.")
+            return None
+        except sr.RequestError:
+            speak("Sorry, my speech service is down.")
+            return None
+        except sr.WaitTimeoutError:
+            print("Listening timed out.")
+            return None
+
+
+def load_music_library(filepath="music.json"):
+    """Loads the music library from a JSON file."""
+    global music_library
     try:
-        # Search for the article on Wikipedia
-        wikipedia.set_lang("en")  # Set language to English
-        page = wikipedia.page(query)
-        
-        # Get the summary of the article
-        summary = page.summary
-        
-        # Return the summary
-        return summary
-    except wikipedia.exceptions.DisambiguationError as e:
-        speak("There were multiple results for your query. Please be more specific.")
-        print(e.options)
-        return None
-    except wikipedia.exceptions.HTTPTimeoutError:
-        speak("There was an issue fetching the Wikipedia page. Please try again later.")
-        return None
-    except Exception as e:
-        speak("Sorry, I couldn't find any information on that topic.")
-        print(e)
-        return None
+        with open(filepath, 'r') as f:
+            music_library = json.load(f)
+        print("Music library loaded successfully.")
+    except FileNotFoundError:
+        print(f"Error: {filepath} not found. Music playback will not work.")
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode {filepath}. Check for syntax errors.")
+
+
+# --- COMMAND HANDLERS ---
+def open_google():
+    """Opens Google in the web browser."""
+    speak("Opening Google.")
+    webbrowser.open("https://www.google.com")
+
+
+def open_linkedin():
+    """Opens LinkedIn in the web browser."""
+    speak("Opening LinkedIn.")
+    webbrowser.open("https://www.linkedin.com")
+
+
+def search_youtube():
+    """Asks for a query and searches it on YouTube."""
+    speak("What would you like to search for on YouTube?")
+    query = listen_for_command("Waiting for YouTube query...")
+    if query:
+        search_query = '+'.join(query.split())
+        url = f"https://www.youtube.com/results?search_query={search_query}"
+        webbrowser.open(url)
+        speak(f"Searching for {query} on YouTube.")
+
+
+def play_song(command):
+    """Plays a song from the music library."""
+    try:
+        song_name = command.split(" ", 1)[1]
+        link = music_library.get(song_name)
+        if link:
+            speak(f"Playing {song_name}.")
+            webbrowser.open(link)
+        else:
+            speak(f"Sorry, I couldn't find {song_name} in my library.")
+    except IndexError:
+        speak("You need to tell me which song to play.")
+
+
+def get_news():
+    """Fetches and reads top news headlines."""
+    speak("Fetching the latest news headlines.")
+    try:
+        url = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={config.newsapi}"
+        r = requests.get(url)
+        r.raise_for_status()  # Raises an exception for bad status codes
+        data = r.json()
+        articles = data.get('articles', [])
+        for i, article in enumerate(articles):
+            if i >= 5:  # Limit to 5 articles
+                break
+            speak(article['title'])
+    except requests.exceptions.RequestException as e:
+        speak("Sorry, I couldn't fetch the news right now.")
+        print(f"Error fetching news: {e}")
 
 
 def tell_joke():
+    """Tells a random joke."""
     try:
         response = requests.get("https://v2.jokeapi.dev/joke/Any?type=single")
-        if response.status_code == 200:
-            joke_data = response.json()
-            if joke_data['type'] == 'single':
-                joke = joke_data['joke']
-            else:
-                joke = f"{joke_data['setup']} - {joke_data['delivery']}"
+        response.raise_for_status()
+        joke_data = response.json()
+        joke = joke_data.get('joke')
+        if joke:
             speak(joke)
-            print("Joke: ", joke)
+            print("Joke:", joke)
         else:
-            speak("Sorry, I couldn't fetch a joke at the moment.")
-            print("Error fetching joke.")
-    except Exception as e:
+            speak("Sorry, I couldn't find a single-part joke.")
+    except requests.exceptions.RequestException as e:
         speak("Sorry, something went wrong while fetching the joke.")
         print("Error:", e)
 
 
+def search_web(command):
+    """Searches the web for a given query."""
+    try:
+        query = command.replace("search", "").strip()
+        if query:
+            speak(f"Searching for {query} on the web.")
+            url = f"https://www.google.com/search?q={'+'.join(query.split())}"
+            webbrowser.open(url)
+        else:
+            speak("What would you like me to search for?")
+    except Exception as e:
+        speak("I encountered an error while trying to search.")
+        print(e)
 
-    
-    
-def speak(text):
-    engine.say(text)
-    engine.runAndWait()
+
+def control_youtube(action):
+    """Controls YouTube playback (play, pause, mute, unmute)."""
+    key_map = {'pause': 'k', 'play': 'k', 'mute': 'm', 'unmute': 'm'}
+    if action in key_map:
+        pyautogui.press(key_map[action])
+        speak(f"Video {action}d.")
+
+
+def search_wikipedia():
+    """Asks for a topic and summarizes the Wikipedia page."""
+    speak("What topic would you like to search for on Wikipedia?")
+    topic = listen_for_command("Waiting for Wikipedia topic...")
+    if topic:
+        try:
+            speak(f"Searching for {topic} on Wikipedia.")
+            wikipedia.set_lang("en")
+            summary = wikipedia.summary(topic, sentences=2)
+            speak("Here's a summary:")
+            speak(summary)
+            print(summary)
+        except wikipedia.exceptions.DisambiguationError as e:
+            speak("There were multiple results. Please be more specific.")
+            print(f"Options: {e.options[:5]}")
+        except wikipedia.exceptions.PageError:
+            speak(f"Sorry, I couldn't find a Wikipedia page for {topic}.")
+        except Exception as e:
+            speak("Sorry, an error occurred while searching Wikipedia.")
+            print(e)
+
+
+# --- COMMAND MAPPING ---
+COMMANDS = {
+    "open google": open_google,
+    "open linkedin": open_linkedin,
+    "search youtube": search_youtube,
+    "play": play_song,  # Uses startswith
+    "news": get_news,
+    "tell me a joke": tell_joke,
+    "search": search_web,  # Uses startswith
+    "pause": lambda: control_youtube('pause'),
+    "play video": lambda: control_youtube('play'),
+    "resume video": lambda: control_youtube('play'),
+    "mute": lambda: control_youtube('mute'),
+    "unmute": lambda: control_youtube('unmute'),
+    "wikipedia": search_wikipedia,
+}
+
+
+def process_command(command):
+    """Processes the user command by matching it against the command map."""
+    # Exact matches first
+    if command in COMMANDS:
+        COMMANDS[command]()
+        return
+
+    # Partial matches for commands like "play <song>" or "search <query>"
+    for key, func in COMMANDS.items():
+        if command.startswith(key):
+            if key == "play" or key == "search":
+                func(command)
+            else:  # for cases like "pause video"
+                func()
+            return
+
+    speak("Sorry, I don't know how to do that.")
+
+
+# --- MAIN EXECUTION ---
 if __name__ == "__main__":
     set_voice_to_female()
-    speak("intializing Sydney...........")
+    load_music_library()
+    speak("Initializing Sydney.")
+
+    # Main loop to listen for activation word
     while True:
         r = sr.Recognizer()
-        print("Reconizing........")
+        print("Recognizing...")
         try:
             with sr.Microphone() as source:
-                print("Listening........")
-                audio = r.listen(source,timeout=3,phrase_time_limit=2)
-            word = r.recognize_google(audio,language='en-in')
-            if (word.lower() == "sydney"):
-                speak("Yes Sir")
-                with sr.Microphone() as source:
-                    print("I am Now Active.......")
-                    audio = r.listen(source)
-                    command = r.recognize_google(audio,language='en-in')
-                    
-                    processcommand(command)
+                print("Listening for activation word 'Sydney'...")
+                audio = r.listen(source, timeout=5, phrase_time_limit=2)
+            word = r.recognize_google(audio, language='en-in')
 
+            if "sydney" in word.lower():
+                speak("Yes Sir?")
+                command = listen_for_command("I am now active...")
+                if command:
+                    process_command(command)
+
+        except sr.WaitTimeoutError:
+            # This is normal, just continue listening
+            continue
         except Exception as e:
-            print(e)
-    
-                    
-
+            # Catch other potential errors during activation listening
+            print(f"An error occurred: {e}")
