@@ -1,6 +1,13 @@
-SpeechRecognition
+langchain
+langchain-community
+langgraph
+pydantic
+speechrecognition
 pyttsx3
-forex-python
-PyAutoGUI
+pyautogui
 wikipedia
 requests
+fastapi
+uvicorn
+websockets
+beautifulsoup4

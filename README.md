@@ -1,54 +1,258 @@
-# Sydney Voice Assistant
+# 🤖 Jarvis 2025 - Local Hierarchical Agent System
 
-This is a Python-based voice assistant named Sydney that can perform various tasks based on voice commands.
+A modern, modular AI assistant powered by specialized agents for autonomous task execution. Built with local-first architecture for privacy and offline capability.
 
-## Features
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-Frontend-61dafb)](https://react.dev/)
 
--   **Web Browsing:** Open Google, LinkedIn, and YouTube.
--   **Music:** Play songs from a predefined library.
--   **News:** Fetch and read the latest news headlines.
--   **Jokes:** Tell a random joke.
--   **Web Search:** Search for a given query on Google.
--   **YouTube Control:** Pause, play, mute, and unmute YouTube videos.
--   **Wikipedia:** Search for a topic and get a summary.
+---
 
-## Setup
+## 🌟 Features
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+### 🧠 **Intelligent Agent System**
 
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+- **KnowledgeAgent**: Quick answers via Wikipedia + Bing search
+- **MediaAgent**: Dynamic YouTube music/video playback with genre support
+- **SystemAgent**: Volume control, app launching, media keys
+- **WebAgent**: General web search and news (fallback)
 
-3.  **Configure the API key:**
-    -   Rename the `config.py.template` file to `config.py`.
-    -   Open `config.py` and replace `"YOUR_NEWS_API_KEY"` with your actual NewsAPI key.
+### 🎨 **Premium Command Center UI**
 
-4.  **Run the application:**
-    ```bash
-    python "mega project 1.py"
-    ```
+- Real-time WebSocket communication
+- Glassmorphism dark mode design
+- Live agent status visualization
+- Voice input via browser's Web Speech API
 
-## Usage
+### 🔒 **Privacy-First Architecture**
 
--   Activate the assistant by saying "Sydney."
--   Once activated, you can give it a command, such as:
-    -   "Open Google"
-    -   "Play not like us"
-    -   "Tell me a joke"
-    -   "Search for Python tutorials"
+- Local execution (no cloud dependency)
+- Modular design for easy customization
+- Bing search integration (no API keys needed)
 
-## How to Add Music
+---
 
-1.  Open the `music.json` file.
-2.  Add a new entry with the song name as the key and the YouTube link as the value.
-    ```json
-    {
-      "new song name": "https://youtube.com/link-to-song"
-    }
-    ```
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Node.js 16+ (for frontend)
+- Windows OS (for system control features)
+
+### Installation
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/yourusername/AI-Jarvis-model.git
+cd AI-Jarvis-model
+```
+
+2. **Install Python dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+3. **Install frontend dependencies**
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### Running the System
+
+#### Option 1: Full System (Recommended)
+
+```bash
+./start_jarvis.bat
+```
+
+Then open `http://localhost:5173` in your browser.
+
+#### Option 2: Voice-Only Mode
+
+```bash
+python main.py
+```
+
+#### Option 3: Test Agents
+
+```bash
+python test_jarvis.py
+```
+
+---
+
+## 📖 Usage Examples
+
+### Voice Commands
+
+**Knowledge Queries:**
+
+- "Who is Elon Musk?"
+- "What is quantum computing?"
+- "Tell me about the Eiffel Tower"
+
+**Media Control:**
+
+- "Play Shape of You"
+- "Play some rock music"
+- "Play romantic songs playlist"
+
+**System Control:**
+
+- "Mute volume"
+- "Open notepad"
+- "Launch calculator"
+
+### Web UI
+
+1. Click the microphone button
+2. Speak your command
+3. See real-time agent processing
+4. Get instant responses
+
+---
+
+## 🏗️ Architecture
+
+```
+jarvis_core/
+├── orchestrator.py      # Routes commands to agents
+├── state.py            # Shared agent state
+├── agents/
+│   ├── knowledge_agent.py   # Wikipedia + Bing search
+│   ├── media_agent.py       # YouTube playback
+│   ├── system_agent.py      # System control
+│   └── web_agent.py         # General web (fallback)
+└── tools/
+    ├── browser_tools.py     # Bing search, URL handling
+    ├── speech_tools.py      # Voice I/O
+    └── system_tools.py      # OS automation
+```
+
+### Agent Routing Logic
+
+```python
+Command → Orchestrator → {
+    "volume|mute|open"     → SystemAgent
+    "play|music|song"      → MediaAgent
+    "who|what|search"      → KnowledgeAgent
+    *                      → WebAgent (fallback)
+}
+```
+
+---
+
+## 🛠️ Configuration
+
+### Search Provider
+
+Currently uses **Bing** (via web scraping). No API key required.
+
+### Voice Settings
+
+Modify `jarvis_core/tools/speech_tools.py`:
+
+```python
+# Change voice speed
+engine.setProperty('rate', 150)  # Default: 150
+
+# Change voice
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)  # 0=male, 1=female
+```
+
+---
+
+## 🧪 Testing
+
+### Run All Tests
+
+```bash
+python test_jarvis.py
+```
+
+### Test Individual Agents
+
+```python
+from jarvis_core.orchestrator import Orchestrator
+
+orchestrator = Orchestrator()
+result = orchestrator.route_command("who is Albert Einstein")
+print(result)
+```
+
+---
+
+## 📦 Dependencies
+
+**Core:**
+
+- `pydantic` - Data validation
+- `requests` - HTTP client
+- `beautifulsoup4` - HTML parsing
+
+**Voice:**
+
+- `speechrecognition` - Speech-to-text
+- `pyttsx3` - Text-to-speech
+
+**System:**
+
+- `pyautogui` - System automation
+
+**Web:**
+
+- `wikipedia` - Wikipedia API
+- `fastapi` - Backend API
+- `uvicorn` - ASGI server
+
+**Frontend:**
+
+- `react` - UI framework
+- `vite` - Build tool
+- `tailwindcss` - Styling
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Inspired by modern agentic AI systems
+- Built with privacy and local execution in mind
+- Designed for extensibility and customization
+
+---
+
+## 📞 Support
+
+For issues, questions, or suggestions:
+
+- Open an [Issue](https://github.com/yourusername/AI-Jarvis-model/issues)
+- Check the [User Guide](USER_GUIDE.md)
+
+---
+
+**Made with ❤️ for the AI community**
