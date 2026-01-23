@@ -167,6 +167,42 @@ voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)  # 0=male, 1=female
 ```
 
+### Security Configuration
+
+**CORS Settings** (Production):
+
+```bash
+# Set allowed frontend origins
+export JARVIS_FRONTEND_URL="https://yourdomain.com"
+
+# For multiple origins
+export JARVIS_FRONTEND_URL="https://yourdomain.com,https://backup.com"
+```
+
+**Application Whitelist**:
+
+Edit `jarvis_core/tools/system_tools.py` to customize allowed applications:
+
+```python
+ALLOWED_APPS = {
+    "Windows": [
+        "notepad", "calc", "chrome", "firefox", # ... add your apps
+    ]
+}
+```
+
+**Network Binding**:
+
+```bash
+# Localhost only (most secure)
+export JARVIS_HOST="127.0.0.1"
+
+# All interfaces (if needed for network access)
+export JARVIS_HOST="0.0.0.0"
+```
+
+For more details, see [SECURITY.md](docs/SECURITY.md).
+
 ---
 
 ## 🧪 Testing
@@ -251,7 +287,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For issues, questions, or suggestions:
 
 - Open an [Issue](https://github.com/yourusername/AI-Jarvis-model/issues)
-- Check the [User Guide](USER_GUIDE.md)
+- Check the [User Guide](docs/USER_GUIDE.md)
 
 ---
 

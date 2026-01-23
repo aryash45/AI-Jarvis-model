@@ -1,13 +1,26 @@
-langchain
-langchain-community
-langgraph
-pydantic
-speechrecognition
-pyttsx3
-pyautogui
-wikipedia
-requests
-fastapi
-uvicorn
-websockets
-beautifulsoup4
+# Core dependencies
+pydantic>=2.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Voice/Speech
+speechrecognition>=3.10.0
+pyttsx3>=2.90
+
+# System automation
+pyautogui>=0.9.54
+
+# Knowledge/Wikipedia
+wikipedia>=1.4.0
+
+# Web API
+fastapi>=0.104.0
+uvicorn>=0.24.0
+websockets>=12.0
+
+# AI/LLM (Free cloud API)
+groq>=0.4.0
+
+# Security (recommended)
+urllib3>=2.0.0
+certifi>=2023.7.0

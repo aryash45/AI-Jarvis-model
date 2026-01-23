@@ -2,13 +2,32 @@ import json
 from jarvis_core.tools.browser_tools import BrowserTools
 
 class MediaAgent:
+    MAX_QUERY_LENGTH = 200
+    
     def __init__(self):
         self.browser = BrowserTools()
 
     def play_song(self, query: str) -> str:
         """
-        Searches for the song/video on YouTube and plays it.
+        Searches for the song/video on YouTube and plays it with validation.
         """
+        # Input validation
+        if not query or not query.strip():
+            return "Please provide a song or video name."
+        
+        query = query.strip()
+        
+        # Remove common trigger words from query
+        for word in ["play", "song", "music", "video"]:
+            query = query.replace(word, "").strip()
+        
+        if not query:
+            return "Please specify what you want to play."
+        
+        # Length validation
+        if len(query) > self.MAX_QUERY_LENGTH:
+            query = query[:self.MAX_QUERY_LENGTH]
+        
         print(f"[MediaAgent] Searching for: {query}")
         
         # Construct search query
@@ -19,7 +38,6 @@ class MediaAgent:
                  search_query += " playlist"
         
         # Search specifically on YouTube
-        # "site:youtube.com" can be flaky with DDG, so we use "youtube {query}"
         full_query = f"{search_query} youtube"
         
         # Fetch more results to ensure we find a valid video link
@@ -28,8 +46,9 @@ class MediaAgent:
         video_url = None
         if results and not results[0].startswith("Error"):
             for url in results:
-                # Allow videos AND playlists
-                if "youtube.com/watch" in url or "youtu.be/" in url or "youtube.com/playlist" in url:
+                # Allow videos AND playlists, validate YouTube domain
+                if ("youtube.com/watch" in url or "youtu.be/" in url or "youtube.com/playlist" in url) and \
+                   ("youtube.com" in url or "youtu.be" in url):
                     video_url = url
                     break
         
