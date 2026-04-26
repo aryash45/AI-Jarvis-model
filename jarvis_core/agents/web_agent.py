@@ -1,45 +1,27 @@
-from jarvis_core.tools.browser_tools import BrowserTools
-import wikipedia
+from jarvis_core.agents.knowledge_agent import KnowledgeAgent
+import logging
 
 class WebAgent:
     def __init__(self):
-        self.browser = BrowserTools()
+        # We delegate all web tasks to the KnowledgeAgent now so we don't open browser tabs.
+        self.knowledge_agent = None
 
     def handle(self, command: str) -> str:
         """
-        Unified handler for general web commands (fallback).
+        Unified handler for general web commands.
+        We no longer redirect or open browser windows. We synthesize the answer directly.
         """
-        command_lower = command.lower()
+        if not self.knowledge_agent:
+            self.knowledge_agent = KnowledgeAgent()
+            
+        logging.info("WebAgent received command, delegating to KnowledgeAgent for in-chat synthesis.")
         
-        # Check for specific keywords
-        if "wikipedia" in command_lower:
-            topic = command_lower.replace("wikipedia", "").strip()
-            return self.handle_wikipedia(topic)
-        elif "news" in command_lower:
-            return self.handle_news()
-        elif "search" in command_lower:
-            query = command_lower.replace("search", "").strip()
-            return self.handle_search(query)
-        else:
-            # Default: just do a Google search
-            return self.handle_search(command)
-
-    def handle_search(self, query: str) -> str:
-        """Handles general web search."""
-        return self.browser.google_search(query)
-
-    def handle_wikipedia(self, topic: str) -> str:
-        """Handles Wikipedia summaries."""
-        try:
-            wikipedia.set_lang("en")
-            summary = wikipedia.summary(topic, sentences=2)
-            return summary
-        except Exception as e:
-            return f"Could not find info on {topic}: {str(e)}"
-
-    def handle_news(self) -> str:
-        """Handles fetching news (placeholder for now)."""
-        # In a real implementation, we'd use NewsAPI here as in the original script
-        # For now, we'll just open Google News
-        self.browser.open_url("https://news.google.com")
-        return "Opened Google News."
+        # Clean up command if it has explicit search keywords
+        command_lower = command.lower()
+        for phrase in ["search google for", "search for", "google", "wikipedia"]:
+            if command_lower.startswith(phrase):
+                command = command[len(phrase):].strip()
+                break
+                
+        # Delegate to KnowledgeAgent to provide a verified, in-chat response
+        return self.knowledge_agent.handle(command)

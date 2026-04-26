@@ -27,6 +27,7 @@ A modern, modular AI assistant powered by specialized agents for autonomous task
 ### 🔒 **Privacy-First Architecture**
 
 - Local execution (no cloud dependency)
+- Powered by LangChain and Ollama
 - Modular design for easy customization
 - Bing search integration (no API keys needed)
 
@@ -122,10 +123,11 @@ python test_jarvis.py
 
 ```
 jarvis_core/
-├── orchestrator.py      # Routes commands to agents
+├── orchestrator.py      # Routes commands to agents using Ollama
 ├── state.py            # Shared agent state
+├── ollama_manager.py   # Ollama LLM integration
 ├── agents/
-│   ├── knowledge_agent.py   # Wikipedia + Bing search
+│   ├── knowledge_agent.py   # Wikipedia + Bing search (Langchain ReAct)
 │   ├── media_agent.py       # YouTube playback
 │   ├── system_agent.py      # System control
 │   └── web_agent.py         # General web (fallback)
@@ -138,11 +140,11 @@ jarvis_core/
 ### Agent Routing Logic
 
 ```python
-Command → Orchestrator → {
-    "volume|mute|open"     → SystemAgent
-    "play|music|song"      → MediaAgent
-    "who|what|search"      → KnowledgeAgent
-    *                      → WebAgent (fallback)
+Command → Orchestrator (Ollama Manager) → {
+    {"agent": "SystemAgent"}     → SystemAgent
+    {"agent": "MediaAgent"}      → MediaAgent
+    {"agent": "KnowledgeAgent"}  → KnowledgeAgent
+    *                            → WebAgent (fallback)
 }
 ```
 

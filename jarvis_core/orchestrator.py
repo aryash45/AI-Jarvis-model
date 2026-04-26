@@ -3,7 +3,7 @@ from jarvis_core.agents.web_agent import WebAgent
 from jarvis_core.agents.knowledge_agent import KnowledgeAgent
 from jarvis_core.agents.system_agent import SystemAgent
 from jarvis_core.agents.media_agent import MediaAgent
-from jarvis_core.groq_ai import GroqAI
+from jarvis_core.ollama_manager import OllamaManager
 import logging
 
 # Configure logging
@@ -23,9 +23,9 @@ class Orchestrator:
         self.system_agent = SystemAgent()
         self.media_agent = MediaAgent()
         
-        # NEW: AI-powered routing with Groq
-        self.ai = GroqAI()
-        logging.info("Orchestrator initialized with Groq AI routing")
+        # NEW: AI-powered routing with Ollama
+        self.ai = OllamaManager()
+        logging.info("Orchestrator initialized with Ollama AI routing")
 
     def route_command(self, command: str) -> str:
         """
