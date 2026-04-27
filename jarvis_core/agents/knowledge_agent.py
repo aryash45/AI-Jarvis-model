@@ -46,16 +46,35 @@ class KnowledgeAgent:
         if not self.enabled:
             return "Knowledge Agent is currently disabled due to LLM initialization failure."
         
-        # Step 1: Only run web search if the query seems to need facts (skip for casual chat)
+        # Step 1: Contextualize the question for search if we have history
         live_search_content = ""
         search_results = []
         is_casual = any(word in question.lower() for word in ["hi", "hello", "how are you", "who are you", "thanks", "thank you"])
         
+        search_query = question
+        if len(self.history) > 0 and not is_casual:
+            history_str = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.history[-4:]]) # last 4 msgs
+            query_prompt = (
+                "Given the conversation history, rewrite the user's latest question to be a standalone web search query. "
+                "Include necessary subjects (like 'WW2' or 'Poland'). "
+                "If the question is already self-contained, return it as is. "
+                "ONLY return the search query, nothing else.\n\n"
+                f"History:\n{history_str}\n\n"
+                f"Latest Question: {question}\n\n"
+                "Search Query:"
+            )
+            try:
+                search_query = self.llm.invoke(query_prompt).content.strip().replace('"', '')
+                logging.info(f"Contextualized search query: {search_query}")
+            except Exception as e:
+                logging.warning(f"Query contextualization failed: {str(e)}")
+                search_query = question
+
         if not is_casual:
             try:
-                live_search_content = self.web_search.run(question)
-                # Step 2: Use internal browser tools for deeper context (fallback)
-                search_results = self._get_search_context(question)
+                live_search_content = self.web_search.run(search_query)
+                # Skipped internal browser tools scraping to drastically improve latency.
+                # DuckDuckGo snippet is usually enough.
             except Exception as e:
                 logging.warning(f"DuckDuckGo search tool failed: {str(e)}")
             
@@ -125,7 +144,7 @@ class KnowledgeAgent:
             "Here is real-time internet context (if any):\n"
             "{context}\n\n"
             "User's latest message: {question}\n\n"
-            "Respond organically. If it's a casual greeting, chat normally. If it's a factual question, summarize the internet context naturally in your own words, avoiding lists."
+            "Respond organically. If it's a casual greeting, chat normally. If it's a factual question, summarize the internet context naturally and concisely in your own words. Keep your answers brief and straight to the point to reduce generation time."
         )
         
         chain = prompt_template | self.llm
