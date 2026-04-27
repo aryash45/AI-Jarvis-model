@@ -1,0 +1,30 @@
+services:
+  # ── Backend: FastAPI WebSocket server ──────────────────────────────────────
+  - type: web
+    name: jarvis-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false          # Set this manually in Render dashboard
+      - key: OPENROUTER_MODEL
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: JARVIS_FRONTEND_URL
+        sync: false          # Set to your frontend URL after deploying frontend
+
+  # ── Frontend: React/Vite static site ───────────────────────────────────────
+  - type: web
+    name: jarvis-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_WS_URL
+        sync: false          # Set to wss://jarvis-backend.onrender.com/ws/chat
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

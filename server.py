@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
+os.makedirs("logs", exist_ok=True)  # Ensure logs dir exists (required on Render)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from jarvis_core.orchestrator import Orchestrator

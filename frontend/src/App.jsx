@@ -152,7 +152,8 @@ function App() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const connectWebSocket = () => {
-    ws.current = new WebSocket('ws://localhost:8000/ws/chat')
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/chat'
+    ws.current = new WebSocket(wsUrl)
     ws.current.onopen  = () => setStatus('Connected')
     ws.current.onmessage = (e) => {
       const d = JSON.parse(e.data)

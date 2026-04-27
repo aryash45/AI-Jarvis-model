@@ -1,4 +1,9 @@
-import pyautogui
+try:
+    import pyautogui
+    PYAUTOGUI_AVAILABLE = True
+except Exception:
+    pyautogui = None
+    PYAUTOGUI_AVAILABLE = False
 import subprocess
 import platform
 import logging
@@ -39,17 +44,14 @@ class SystemTools:
     def press_key(key: str) -> str:
         """Presses a keyboard key with validation."""
         try:
-            # Sanitize and validate input
             key = key.strip().lower()
-            
             if not key:
                 return "Error: Empty key provided"
-            
-            # Security: Only allow whitelisted media keys
             if key not in SystemTools.ALLOWED_KEYS:
                 logging.warning(f"Attempted to press non-whitelisted key: {key}")
                 return f"Error: Key '{key}' is not allowed for security reasons"
-            
+            if not PYAUTOGUI_AVAILABLE:
+                return "System key control is not available in web mode."
             pyautogui.press(key)
             logging.info(f"Successfully pressed key: {key}")
             return f"Pressed key: {key}"
@@ -136,10 +138,12 @@ class SystemTools:
             if action not in valid_actions:
                 return f"Error: Invalid volume action. Use: {', '.join(valid_actions)}"
             
+            if not PYAUTOGUI_AVAILABLE:
+                return "Volume control is not available in web/cloud mode."
             if action == "mute":
                 pyautogui.press("volumemute")
             elif action == "unmute":
-                pyautogui.press("volumemute")  # Toggle
+                pyautogui.press("volumemute")
             elif action == "up":
                 pyautogui.press("volumeup")
             elif action == "down":

@@ -1,5 +1,5 @@
 from langchain_core.prompts import PromptTemplate
-from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langchain_community.tools import DuckDuckGoSearchRun
 from jarvis_core.tools.browser_tools import BrowserTools
 import logging
@@ -17,21 +17,41 @@ class KnowledgeAgent:
     Uses LangChain, Ollama, and DuckDuckGo for live internet search.
     """
     
+    # Ordered list of free fallback models to try when one is rate-limited
+    FALLBACK_MODELS = [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "google/gemma-3-27b-it:free",
+        "google/gemma-3-12b-it:free",
+    ]
+
     def __init__(self):
         self.browser = BrowserTools()
         self.history = []  # Added conversational memory
-        
-        # Initialize Langchain components
-        model_name = os.getenv("OLLAMA_MODEL", "llama3")
-        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        
+        self.api_key = os.getenv("OPENROUTER_API_KEY", "")
+        primary_model = os.getenv("OPENROUTER_MODEL", self.FALLBACK_MODELS[0])
+        # Put primary model first, then the rest of the fallbacks
+        self.models = [primary_model] + [m for m in self.FALLBACK_MODELS if m != primary_model]
+
         try:
-            self.llm = ChatOllama(model=model_name, base_url=ollama_host, temperature=0.3)
+            # Build LLM clients for each fallback model
+            self._llm_clients = [
+                ChatOpenAI(
+                    model=m,
+                    openai_api_key=self.api_key,
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    temperature=0.3,
+                    max_retries=0,  # We handle retries ourselves via fallback
+                )
+                for m in self.models
+            ]
+            self.llm = self._llm_clients[0]  # default
             # Upgraded from Wikipedia to live DuckDuckGo Search
             self.web_search = DuckDuckGoSearchRun()
             self.enabled = True
         except Exception as e:
-            logging.warning(f"Failed to initialize LangChain Ollama in KnowledgeAgent: {str(e)}")
+            logging.warning(f"Failed to initialize LangChain OpenRouter in KnowledgeAgent: {str(e)}")
             self.enabled = False
 
     def handle(self, command: str) -> str:
@@ -44,7 +64,7 @@ class KnowledgeAgent:
         question = self._extract_question(command)
         
         if not self.enabled:
-            return "Knowledge Agent is currently disabled due to LLM initialization failure."
+            return "Knowledge Agent is currently disabled due to LLM initialization failure. Please set OPENROUTER_API_KEY."
         
         # Step 1: Contextualize the question for search if we have history
         live_search_content = ""
@@ -64,7 +84,7 @@ class KnowledgeAgent:
                 "Search Query:"
             )
             try:
-                search_query = self.llm.invoke(query_prompt).content.strip().replace('"', '')
+                search_query = self._call_llm(query_prompt).content.strip().replace('"', '')
                 logging.info(f"Contextualized search query: {search_query}")
             except Exception as e:
                 logging.warning(f"Query contextualization failed: {str(e)}")
@@ -83,6 +103,24 @@ class KnowledgeAgent:
         
         return answer
     
+    def _call_llm(self, prompt_or_messages):
+        """Try each model in order, falling back on 429/400 errors."""
+        last_error = None
+        for i, client in enumerate(self._llm_clients):
+            try:
+                result = client.invoke(prompt_or_messages)
+                if i > 0:
+                    logging.info(f"Fallback succeeded with model: {self.models[i]}")
+                return result
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "400" in err_str or "rate" in err_str.lower():
+                    logging.warning(f"Model {self.models[i]} failed ({err_str[:80]}), trying next...")
+                    last_error = e
+                    continue
+                raise  # Non-retryable errors bubble up immediately
+        raise last_error  # All models exhausted
+
     def _extract_question(self, command: str) -> str:
         """Clean up command to extract the actual question"""
         question = command.lower()
@@ -147,10 +185,15 @@ class KnowledgeAgent:
             "Respond organically. If it's a casual greeting, chat normally. If it's a factual question, summarize the internet context naturally and concisely in your own words. Keep your answers brief and straight to the point to reduce generation time."
         )
         
-        chain = prompt_template | self.llm
+        # Build the prompt string directly so we can use _call_llm with fallback
+        prompt_str = prompt_template.format(
+            question=question,
+            context=combined_context,
+            history=history_str
+        )
         
         try:
-            response = chain.invoke({"question": question, "context": combined_context, "history": history_str})
+            response = self._call_llm(prompt_str)
             logging.info("Successfully synthesized answer using LangChain")
             
             # Save AI response to history
