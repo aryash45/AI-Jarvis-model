@@ -14,50 +14,63 @@ logging.basicConfig(
 class KnowledgeAgent:
     """
     AI-powered knowledge agent that synthesizes answers from multiple sources.
-    Uses LangChain, Ollama, and DuckDuckGo for live internet search.
+    Uses LangChain + Groq (primary) / OpenRouter (fallback) + DuckDuckGo search.
     """
-    
-    # Ordered list of free fallback models to try when one is rate-limited
-    FALLBACK_MODELS = [
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "meta-llama/llama-3.2-3b-instruct:free",
-        "nvidia/nemotron-3-super-120b-a12b:free",
-        "google/gemma-3-27b-it:free",
-        "google/gemma-3-12b-it:free",
-    ]
 
     def __init__(self):
         self.browser = BrowserTools()
-        self.history = []  # Added conversational memory
-        self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        primary_model = os.getenv("OPENROUTER_MODEL", self.FALLBACK_MODELS[0])
-        # Put primary model first, then the rest of the fallbacks
-        self.models = [primary_model] + [m for m in self.FALLBACK_MODELS if m != primary_model]
+        self.history = []
 
-        # Debug: show key status in stdout (visible in Render logs)
-        key_status = f"sk-or-...{self.api_key[-6:]}" if len(self.api_key) > 6 else "EMPTY/NOT SET"
-        print(f"[KnowledgeAgent] OPENROUTER_API_KEY status: {key_status}")
-        print(f"[KnowledgeAgent] Models to try: {self.models}")
+        groq_key    = os.getenv("GROQ_API_KEY", "")
+        or_key      = os.getenv("OPENROUTER_API_KEY", "")
+
+        # Build provider configs: Groq first (generous free tier), then OpenRouter
+        providers = []
+
+        if groq_key:
+            for model in [
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+                "mixtral-8x7b-32768",
+                "gemma2-9b-it",
+            ]:
+                providers.append((model, groq_key, "https://api.groq.com/openai/v1"))
+            print(f"[KnowledgeAgent] Groq key found — {len(providers)} Groq models queued")
+        else:
+            print("[KnowledgeAgent] ⚠️  No GROQ_API_KEY — skipping Groq")
+
+        if or_key:
+            for model in [
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "meta-llama/llama-3.2-3b-instruct:free",
+                "nvidia/nemotron-3-super-120b-a12b:free",
+            ]:
+                providers.append((model, or_key, "https://openrouter.ai/api/v1"))
+            print(f"[KnowledgeAgent] OpenRouter key found — OR fallbacks added")
+        else:
+            print("[KnowledgeAgent] ⚠️  No OPENROUTER_API_KEY — skipping OpenRouter")
+
+        self.model_names = [p[0] for p in providers]
+        print(f"[KnowledgeAgent] Provider chain: {self.model_names}")
 
         try:
-            # Build LLM clients for each fallback model
             self._llm_clients = [
                 ChatOpenAI(
-                    model=m,
-                    openai_api_key=self.api_key,
-                    openai_api_base="https://openrouter.ai/api/v1",
+                    model=model,
+                    openai_api_key=key,
+                    openai_api_base=base_url,
                     temperature=0.3,
                     max_retries=0,
                 )
-                for m in self.models
+                for model, key, base_url in providers
             ]
-            self.llm = self._llm_clients[0]
+            self.llm = self._llm_clients[0] if self._llm_clients else None
             self.web_search = DuckDuckGoSearchRun()
-            self.enabled = True
-            print(f"[KnowledgeAgent] ✅ Initialized successfully with {len(self._llm_clients)} models")
+            self.enabled = bool(self._llm_clients)
+            print(f"[KnowledgeAgent] ✅ Ready with {len(self._llm_clients)} models")
         except Exception as e:
             print(f"[KnowledgeAgent] ❌ INIT FAILED: {type(e).__name__}: {str(e)}")
-            logging.warning(f"Failed to initialize LangChain OpenRouter in KnowledgeAgent: {str(e)}")
+            logging.warning(f"KnowledgeAgent init failed: {e}")
             self.enabled = False
 
     def handle(self, command: str) -> str:
@@ -110,18 +123,18 @@ class KnowledgeAgent:
         return answer
     
     def _call_llm(self, prompt_or_messages):
-        """Try each model in order, falling back on 429/400 errors."""
+        """Try each provider/model in order, falling back on 429/400 errors."""
         last_error = None
         for i, client in enumerate(self._llm_clients):
             try:
                 result = client.invoke(prompt_or_messages)
                 if i > 0:
-                    logging.info(f"Fallback succeeded with model: {self.models[i]}")
+                    logging.info(f"Fallback succeeded with model: {self.model_names[i]}")
                 return result
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str or "400" in err_str or "rate" in err_str.lower():
-                    logging.warning(f"Model {self.models[i]} failed ({err_str[:80]}), trying next...")
+                    logging.warning(f"Model {self.model_names[i]} failed ({err_str[:80]}), trying next...")
                     last_error = e
                     continue
                 raise  # Non-retryable errors bubble up immediately
