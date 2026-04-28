@@ -34,6 +34,11 @@ class KnowledgeAgent:
         # Put primary model first, then the rest of the fallbacks
         self.models = [primary_model] + [m for m in self.FALLBACK_MODELS if m != primary_model]
 
+        # Debug: show key status in stdout (visible in Render logs)
+        key_status = f"sk-or-...{self.api_key[-6:]}" if len(self.api_key) > 6 else "EMPTY/NOT SET"
+        print(f"[KnowledgeAgent] OPENROUTER_API_KEY status: {key_status}")
+        print(f"[KnowledgeAgent] Models to try: {self.models}")
+
         try:
             # Build LLM clients for each fallback model
             self._llm_clients = [
@@ -42,15 +47,16 @@ class KnowledgeAgent:
                     openai_api_key=self.api_key,
                     openai_api_base="https://openrouter.ai/api/v1",
                     temperature=0.3,
-                    max_retries=0,  # We handle retries ourselves via fallback
+                    max_retries=0,
                 )
                 for m in self.models
             ]
-            self.llm = self._llm_clients[0]  # default
-            # Upgraded from Wikipedia to live DuckDuckGo Search
+            self.llm = self._llm_clients[0]
             self.web_search = DuckDuckGoSearchRun()
             self.enabled = True
+            print(f"[KnowledgeAgent] ✅ Initialized successfully with {len(self._llm_clients)} models")
         except Exception as e:
+            print(f"[KnowledgeAgent] ❌ INIT FAILED: {type(e).__name__}: {str(e)}")
             logging.warning(f"Failed to initialize LangChain OpenRouter in KnowledgeAgent: {str(e)}")
             self.enabled = False
 
