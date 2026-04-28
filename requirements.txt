@@ -4,15 +4,16 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 
-# Voice/Speech
-speechrecognition>=3.10.0
-pyttsx3>=2.90
+# Voice/Speech (local CLI only - not installed on cloud)
+# speechrecognition>=3.10.0
+# pyttsx3>=2.90
 
-# System automation
-pyautogui>=0.9.54
+# System automation (local only - requires display)
+# pyautogui>=0.9.54
 
 # Knowledge/Web Search
 duckduckgo-search>=5.0.0
+ddgs>=0.1.0
 
 # Web API
 fastapi>=0.104.0
