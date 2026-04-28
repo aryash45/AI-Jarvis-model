@@ -6,6 +6,8 @@ os.makedirs("logs", exist_ok=True)  # Ensure logs dir exists (required on Render
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from jarvis_core.orchestrator import Orchestrator
 import json
 import asyncio
@@ -21,15 +23,14 @@ logging.basicConfig(
 
 app = FastAPI(title="Jarvis Command Center API")
 
-# Secure CORS configuration
-# Use environment variable for production, fallback to localhost for development
-ALLOWED_ORIGINS = os.getenv("JARVIS_FRONTEND_URL", "http://localhost:5173").split(",")
+# CORS — allow all origins (same-origin in prod, localhost in dev)
+ALLOWED_ORIGINS = os.getenv("JARVIS_FRONTEND_URL", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # Specific origins only
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],  # Only needed methods
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -40,22 +41,12 @@ orchestrator = Orchestrator()
 MAX_MESSAGE_LENGTH = 10000  # 10KB limit for messages
 MAX_COMMAND_LENGTH = 500
 
-@app.get("/")
-async def root():
-    """Health check endpoint."""
-    return {
-        "message": "Jarvis Backend is Running",
-        "status": "healthy",
-        "version": "2.0"
-    }
+FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check."""
-    return {
-        "status": "healthy",
-        "timestamp": asyncio.get_event_loop().time()
-    }
+    """Health check endpoint."""
+    return {"status": "healthy", "version": "2.0"}
 
 @app.websocket("/ws/chat")
 async def websocket_endpoint(websocket: WebSocket):
@@ -128,11 +119,21 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    
-    # Get host and port from environment variables with defaults
     host = os.getenv("JARVIS_HOST", "0.0.0.0")
     port = int(os.getenv("JARVIS_PORT", "8000"))
-    
     logging.info(f"Starting Jarvis API server on {host}:{port}")
-    
     uvicorn.run(app, host=host, port=port)
+
+# Mount React frontend — must be AFTER all API routes
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_react(full_path: str):
+        """Serve React SPA — return index.html for all non-API routes."""
+        index = os.path.join(FRONTEND_DIST, "index.html")
+        return FileResponse(index)
+else:
+    @app.get("/")
+    async def root():
+        return {"message": "Jarvis Backend is Running", "status": "healthy", "version": "2.0"}
