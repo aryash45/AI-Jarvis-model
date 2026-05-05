@@ -1,35 +1,64 @@
-# 🤖 Jarvis 2025 - Local Hierarchical Agent System
+# 🤖 Jarvis 2.0 - Advanced Contextual AI Assistant
 
-A modern, modular AI assistant powered by specialized agents for autonomous task execution. Built with local-first architecture for privacy and offline capability.
+**Jarvis 2.0** is a sophisticated, highly contextual AI assistant engineered for seamless, natural conversations and autonomous task execution. Evolving into a powerful web application, Jarvis now features a robust, low-latency multi-LLM architecture utilizing **Groq** and **OpenRouter**, integrated real-time **DuckDuckGo** web search, and deep conversational memory. 
+
+Whether deployed locally for system automation or hosted in the cloud (Render-ready) with its premium, ChatGPT-inspired dark mode UI, Jarvis provides lightning-fast, highly accurate responses and an unparalleled user experience.
+
+
+
+
+<br/>
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-Frontend-61dafb)](https://react.dev/)
+[![LangChain](https://img.shields.io/badge/LangChain-AI-orange)](https://langchain.com/)
 
 ---
 
-## 🌟 Features
+## 💻 Tech Stack
 
-### 🧠 **Intelligent Agent System**
+- **Frontend:** React, Vite, TailwindCSS (Glassmorphic dark-mode UI)
+- **Backend:** Python, FastAPI, WebSockets (Real-time bidirectional streaming)
+- **AI/ML:** LangChain, Groq API (Llama-3.3, Mixtral), OpenRouter API, DuckDuckGo Search
+- **Deployment:** Render (Cloud), Local execution (Windows OS Automation)
 
-- **KnowledgeAgent**: Quick answers via Wikipedia + Bing search
-- **MediaAgent**: Dynamic YouTube music/video playback with genre support
-- **SystemAgent**: Volume control, app launching, media keys
-- **WebAgent**: General web search and news (fallback)
+---
 
-### 🎨 **Premium Command Center UI**
+## 🌟 Key Features
 
-- Real-time WebSocket communication
-- Glassmorphism dark mode design
-- Live agent status visualization
-- Voice input via browser's Web Speech API
+### 🧠 **Conversational Intelligence & Memory**
+- **Deep Contextual Awareness:** Maintains conversation history to understand follow-up questions intuitively.
+- **Query Contextualization:** Dynamically rewrites questions based on past context for highly accurate web searches.
+- **Natural Persona:** Responds in an articulate, human-like manner without rigid robotic formatting.
 
-### 🔒 **Privacy-First Architecture**
+### ⚡ **Multi-LLM Architecture**
+- **Primary Groq Integration:** Ultra-low latency inference using models like `Llama-3.3-70b-versatile`, `Mixtral-8x7b`, and `Gemma2-9b`.
+- **OpenRouter Fallback:** Automatic failover to OpenRouter's free tier (Llama 3.3, Nemotron 120B) ensures maximum uptime and reliability when primary providers rate-limit.
 
-- Local execution (no cloud dependency)
-- Powered by LangChain and Ollama
-- Modular design for easy customization
-- Bing search integration (no API keys needed)
+### 🔍 **Live Search & Specialized Agents**
+- **KnowledgeAgent:** Synthesizes live internet data using LangChain and DuckDuckGo search integration.
+- **MediaAgent:** Dynamic YouTube music/video playback with genre support.
+- **SystemAgent:** Volume control, application launching, and media keys (for local Windows deployments).
+
+### 🎨 **Premium ChatGPT-Style UI**
+- **Immersive Design:** Modern, glassmorphic dark-mode interface.
+- **Typewriter Effect:** Dynamic text generation mimicking natural typing.
+- **WebSocket Communication:** Real-time bidirectional streaming between the React frontend and FastAPI backend.
+
+### 🚀 **Production-Ready Deployment**
+- **Unified Server:** A single `server.py` FastAPI instance serves both the API/WebSockets and the compiled React SPA.
+- **Non-Blocking Execution:** Uses ThreadPoolExecutors for LLM calls so the event loop is never blocked, allowing multiple clients simultaneously.
+- **Render Compatible:** Out-of-the-box support for Render deployments with automatic log directory provisioning.
+
+---
+
+## 💡 Technical Achievements
+
+- **Thread-Pool Concurrency:** Designed a non-blocking WebSocket backend using `concurrent.futures.ThreadPoolExecutor` to handle intensive LLM inference without freezing the FastAPI event loop, enabling multi-tenant usage.
+- **Resilient AI Pipeline:** Implemented an automatic failover mechanism routing requests to OpenRouter models if Groq encounters rate-limiting (HTTP 429), ensuring maximum conversational uptime.
+- **Stateful Conversational Memory:** Built a custom context-sliding window that feeds the last N messages back into the LLM, coupled with an AI-driven query contextualization pre-step for highly accurate web scraping.
+- **Unified Full-Stack Deployment:** Engineered a single FastAPI instance capable of serving both the compiled React Single Page Application (SPA) static files and WebSocket APIs concurrently, dramatically simplifying CI/CD and deployment on Render.
 
 ---
 
@@ -38,8 +67,8 @@ A modern, modular AI assistant powered by specialized agents for autonomous task
 ### Prerequisites
 
 - Python 3.8+
-- Node.js 16+ (for frontend)
-- Windows OS (for system control features)
+- Node.js 16+ (for frontend building)
+- API Keys: [Groq](https://console.groq.com/) (Required) and [OpenRouter](https://openrouter.ai/) (Optional Fallback)
 
 ### Installation
 
@@ -56,212 +85,95 @@ cd AI-Jarvis-model
 pip install -r requirements.txt
 ```
 
-3. **Install frontend dependencies**
+3. **Install and build frontend**
 
 ```bash
 cd frontend
 npm install
+npm run build
 cd ..
+```
+
+4. **Environment Configuration**
+
+Create a `.env` file in the root directory:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+JARVIS_HOST=0.0.0.0
+JARVIS_PORT=8000
 ```
 
 ### Running the System
 
-#### Option 1: Full System (Recommended)
+#### Option 1: Full Unified Server (Production/Local)
 
 ```bash
-./start_jarvis.bat
+python server.py
 ```
+*Then open `http://localhost:8000` in your browser. The single server hosts both the React UI and the WebSocket API.*
 
-Then open `http://localhost:5173` in your browser.
+#### Option 2: Development Mode
 
-#### Option 2: Voice-Only Mode
+You can run the backend and frontend separately for hot-reloading:
+- Backend: `uvicorn server:app --reload`
+- Frontend: `cd frontend && npm run dev`
 
-```bash
-python main.py
-```
+---
 
-#### Option 3: Test Agents
+## 🏗️ Architecture
 
-```bash
-python test_jarvis.py
+```text
+AI-Jarvis-model/
+├── jarvis_core/
+│   ├── orchestrator.py      # Core router and conversational state manager
+│   ├── agents/
+│   │   ├── knowledge_agent.py   # LangChain + Groq + DuckDuckGo + Memory
+│   │   ├── media_agent.py       # YouTube playback controls
+│   │   ├── system_agent.py      # OS automation (Windows)
+│   │   └── web_agent.py         # Fallback web tasks
+│   └── tools/
+│       ├── browser_tools.py     # URL handling
+│       ├── speech_tools.py      # Voice I/O handling
+│       └── system_tools.py      # System apps and volume logic
+├── frontend/                # React SPA (Vite + TailwindCSS)
+└── server.py                # Unified FastAPI Backend & Static File Server
 ```
 
 ---
 
 ## 📖 Usage Examples
 
-### Voice Commands
+### Voice & Text Commands
 
-**Knowledge Queries:**
-
-- "Who is Elon Musk?"
-- "What is quantum computing?"
-- "Tell me about the Eiffel Tower"
+**Knowledge & Context:**
+- *User:* "Who is the CEO of Tesla?"
+- *Jarvis:* "Elon Musk is the CEO of Tesla."
+- *User:* "How old is he?" *(Jarvis seamlessly understands 'he' refers to Elon Musk using conversation memory)*
 
 **Media Control:**
-
-- "Play Shape of You"
 - "Play some rock music"
-- "Play romantic songs playlist"
+- "Play Shape of You on YouTube"
 
-**System Control:**
-
-- "Mute volume"
-- "Open notepad"
-- "Launch calculator"
-
-### Web UI
-
-1. Click the microphone button
-2. Speak your command
-3. See real-time agent processing
-4. Get instant responses
+**System Control (Local Run Only):**
+- "Mute the system volume"
+- "Open calculator"
 
 ---
 
-## 🏗️ Architecture
+## 🛠️ Configuration & Security
 
-```
-jarvis_core/
-├── orchestrator.py      # Routes commands to agents using Ollama
-├── state.py            # Shared agent state
-├── ollama_manager.py   # Ollama LLM integration
-├── agents/
-│   ├── knowledge_agent.py   # Wikipedia + Bing search (Langchain ReAct)
-│   ├── media_agent.py       # YouTube playback
-│   ├── system_agent.py      # System control
-│   └── web_agent.py         # General web (fallback)
-└── tools/
-    ├── browser_tools.py     # Bing search, URL handling
-    ├── speech_tools.py      # Voice I/O
-    └── system_tools.py      # OS automation
-```
+- **Multi-Tenant WebSockets:** Each WebSocket connection spawns an isolated Orchestrator, ensuring user conversation histories never overlap.
+- **Allowed Apps:** You can customize the whitelist of applications Jarvis is permitted to open by modifying `ALLOWED_APPS` in `jarvis_core/tools/system_tools.py`.
 
-### Agent Routing Logic
-
-```python
-Command → Orchestrator (Ollama Manager) → {
-    {"agent": "SystemAgent"}     → SystemAgent
-    {"agent": "MediaAgent"}      → MediaAgent
-    {"agent": "KnowledgeAgent"}  → KnowledgeAgent
-    *                            → WebAgent (fallback)
-}
-```
-
----
-
-## 🛠️ Configuration
-
-### Search Provider
-
-Currently uses **Bing** (via web scraping). No API key required.
-
-### Voice Settings
-
-Modify `jarvis_core/tools/speech_tools.py`:
-
-```python
-# Change voice speed
-engine.setProperty('rate', 150)  # Default: 150
-
-# Change voice
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)  # 0=male, 1=female
-```
-
-### Security Configuration
-
-**CORS Settings** (Production):
-
-```bash
-# Set allowed frontend origins
-export JARVIS_FRONTEND_URL="https://yourdomain.com"
-
-# For multiple origins
-export JARVIS_FRONTEND_URL="https://yourdomain.com,https://backup.com"
-```
-
-**Application Whitelist**:
-
-Edit `jarvis_core/tools/system_tools.py` to customize allowed applications:
-
-```python
-ALLOWED_APPS = {
-    "Windows": [
-        "notepad", "calc", "chrome", "firefox", # ... add your apps
-    ]
-}
-```
-
-**Network Binding**:
-
-```bash
-# Localhost only (most secure)
-export JARVIS_HOST="127.0.0.1"
-
-# All interfaces (if needed for network access)
-export JARVIS_HOST="0.0.0.0"
-```
-
-For more details, see [SECURITY.md](docs/SECURITY.md).
-
----
-
-## 🧪 Testing
-
-### Run All Tests
-
-```bash
-python test_jarvis.py
-```
-
-### Test Individual Agents
-
-```python
-from jarvis_core.orchestrator import Orchestrator
-
-orchestrator = Orchestrator()
-result = orchestrator.route_command("who is Albert Einstein")
-print(result)
-```
-
----
-
-## 📦 Dependencies
-
-**Core:**
-
-- `pydantic` - Data validation
-- `requests` - HTTP client
-- `beautifulsoup4` - HTML parsing
-
-**Voice:**
-
-- `speechrecognition` - Speech-to-text
-- `pyttsx3` - Text-to-speech
-
-**System:**
-
-- `pyautogui` - System automation
-
-**Web:**
-
-- `wikipedia` - Wikipedia API
-- `fastapi` - Backend API
-- `uvicorn` - ASGI server
-
-**Frontend:**
-
-- `react` - UI framework
-- `vite` - Build tool
-- `tailwindcss` - Styling
+For more details on network binding and CORS, refer to the [SECURITY.md](docs/SECURITY.md).
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
-
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
@@ -273,24 +185,3 @@ Contributions are welcome! Please:
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- Inspired by modern agentic AI systems
-- Built with privacy and local execution in mind
-- Designed for extensibility and customization
-
----
-
-## 📞 Support
-
-For issues, questions, or suggestions:
-
-- Open an [Issue](https://github.com/yourusername/AI-Jarvis-model/issues)
-- Check the [User Guide](docs/USER_GUIDE.md)
-
----
-
-**Made with ❤️ for the AI community**
