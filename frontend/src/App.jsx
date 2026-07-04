@@ -96,25 +96,23 @@ function JarvisOrb() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        /* Fix 5: blinking cursor shown while streaming */
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        .streaming-cursor {
+          display: inline-block;
+          width: 2px;
+          height: 1em;
+          background: #a8a4ff;
+          margin-left: 2px;
+          vertical-align: text-bottom;
+          animation: blink 0.8s ease-in-out infinite;
+        }
       `}</style>
     </div>
   )
-}
-
-/* ─── Typewriter ─── */
-function TypewriterText({ text }) {
-  const [shown, setShown] = useState('')
-  useEffect(() => {
-    let i = 0
-    setShown('')
-    const id = setInterval(() => {
-      setShown(text.substring(0, i))
-      i++
-      if (i > text.length) clearInterval(id)
-    }, 12)
-    return () => clearInterval(id)
-  }, [text])
-  return <span>{shown}</span>
 }
 
 /* ─── Neural Pulse tag ─── */
@@ -140,30 +138,76 @@ function NeuralPulse() {
    MAIN APP
    ═══════════════════════════════════════════ */
 function App() {
-  const [status, setStatus] = useState('Disconnected')
-  const [messages, setMessages] = useState([])
+  const [status, setStatus]         = useState('Disconnected')
+  const [messages, setMessages]     = useState([])
   const [inputValue, setInputValue] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
-  const ws = useRef(null)
-  const endRef = useRef(null)
+  const ws      = useRef(null)
+  const endRef  = useRef(null)
+  // Track the id of the currently-streaming Jarvis bubble
+  const streamingIdRef = useRef(null)
 
   useEffect(() => { connectWebSocket(); return () => ws.current?.close() }, [])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const connectWebSocket = () => {
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/chat'
+    // Fix 7: persist session ID in localStorage so history survives refresh
+    const storedSession = localStorage.getItem('jarvis_session_id')
+    const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/chat'
+    const wsUrl   = storedSession ? `${baseUrl}?session_id=${storedSession}` : baseUrl
+
     ws.current = new WebSocket(wsUrl)
     ws.current.onopen  = () => setStatus('Connected')
     ws.current.onmessage = (e) => {
       const d = JSON.parse(e.data)
-      if (d.type === 'response' || d.type === 'error') addMessage(d.text, 'jarvis')
+
+      if (d.type === 'session') {
+        // Fix 7: server sent us (or confirmed) our session ID
+        localStorage.setItem('jarvis_session_id', d.session_id)
+        return
+      }
+
+      if (d.type === 'chunk') {
+        // Fix 5: append chunk to the in-progress streaming bubble
+        const sid = streamingIdRef.current
+        if (sid !== null) {
+          setMessages(prev => prev.map(msg =>
+            msg.id === sid
+              ? { ...msg, text: msg.text + d.text }
+              : msg
+          ))
+        } else {
+          // First chunk — create the bubble
+          const newId = Date.now()
+          streamingIdRef.current = newId
+          setMessages(prev => [...prev, { id: newId, text: d.text, sender: 'jarvis', streaming: true }])
+        }
+        return
+      }
+
+      if (d.type === 'done') {
+        // Fix 5: mark the bubble as fully received
+        const sid = streamingIdRef.current
+        if (sid !== null) {
+          setMessages(prev => prev.map(msg =>
+            msg.id === sid ? { ...msg, streaming: false } : msg
+          ))
+          streamingIdRef.current = null
+        }
+        return
+      }
+
+      // Legacy non-streaming agents (MediaAgent, SystemAgent) + errors
+      if (d.type === 'response' || d.type === 'error') {
+        addMessage(d.text, 'jarvis')
+      }
     }
     ws.current.onclose = () => setStatus('Disconnected')
   }
 
   const addMessage = (text, sender) =>
-    setMessages(prev => [...prev, { id: Date.now(), text, sender }])
+    setMessages(prev => [...prev, { id: Date.now(), text, sender, streaming: false }])
 
   const handleSend = (e) => {
     e?.preventDefault()
@@ -172,6 +216,8 @@ function App() {
     addMessage(text, 'user')
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(text)
     setInputValue('')
+    // Reset streaming tracker for next response
+    streamingIdRef.current = null
   }
 
   const handleSuggestion = (text) => {
@@ -180,6 +226,7 @@ function App() {
       addMessage(text, 'user')
       if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(text)
       setInputValue('')
+      streamingIdRef.current = null
     }, 80)
   }
 
@@ -249,7 +296,7 @@ function App() {
     statusDot: {
       display: 'inline-flex', alignItems: 'center', gap: 6,
       fontFamily: 'Inter, sans-serif', fontSize: 12,
-      color: connected ? '#6b7280' : '#6b7280',
+      color: '#6b7280',
       letterSpacing: '0.02em',
     },
     scrollArea: {
@@ -383,10 +430,7 @@ function App() {
   return (
     <>
       {/* Google Fonts */}
-      <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-      />
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap"
         rel="stylesheet"
@@ -500,10 +544,12 @@ function App() {
                         <JarvisLogo size={26} />
                       </div>
                       <div>
+                        {/* Fix 5: render text directly; show blinking cursor while streaming */}
                         <div style={S.aiText}>
-                          <TypewriterText text={msg.text} />
+                          {msg.text}
+                          {msg.streaming && <span className="streaming-cursor" />}
                         </div>
-                        <NeuralPulse />
+                        {!msg.streaming && <NeuralPulse />}
                       </div>
                     </motion.div>
                   ))}
@@ -599,6 +645,18 @@ function App() {
         @keyframes neuralPing {
           0%,100% { transform: scale(1); opacity: 1; }
           50%     { transform: scale(1.8); opacity: 0; }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        .streaming-cursor {
+          display: inline-block;
+          width: 2px; height: 1em;
+          background: #a8a4ff;
+          margin-left: 2px;
+          vertical-align: text-bottom;
+          animation: blink 0.8s ease-in-out infinite;
         }
         /* Hide scrollbars globally */
         ::-webkit-scrollbar { display: none; }
